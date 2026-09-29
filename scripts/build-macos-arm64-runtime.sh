@@ -71,6 +71,22 @@ cmake --build . --parallel "$JOBS"
 mv libx265.a libx265_main.a
 libtool -static -o libx265.a libx265_main.a libx265_main10.a libx265_main12.a
 cmake --install .
+mkdir -p "$PREFIX/lib/pkgconfig"
+cat > "$PREFIX/lib/pkgconfig/x265.pc" <<EOF
+prefix=$PREFIX
+exec_prefix=\${prefix}
+libdir=\${prefix}/lib
+includedir=\${prefix}/include
+
+Name: x265
+Description: H.265/HEVC encoder library
+Version: $X265_VERSION
+Libs: -L\${libdir} -lx265
+Libs.private: -lc++ -lm
+Cflags: -I\${includedir}
+EOF
+pkg-config --modversion x265
+pkg-config --libs --static x265
 popd >/dev/null
 
 pushd "$SRC_ROOT/zimg" >/dev/null
