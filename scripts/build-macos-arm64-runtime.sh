@@ -52,24 +52,29 @@ tar -xf "$SRC_ROOT/ffmpeg.tar.xz" --strip-components=1 -C "$SRC_ROOT/ffmpeg"
 tar -xf "$SRC_ROOT/x265.tar.gz" --strip-components=1 -C "$SRC_ROOT/x265"
 tar -xf "$SRC_ROOT/zimg.tar.gz" --strip-components=1 -C "$SRC_ROOT/zimg"
 
-X265_BUILD="$BUILD_ROOT/x265"
-mkdir -p "$X265_BUILD"
-pushd "$X265_BUILD" >/dev/null
+X265_MULTI="$BUILD_ROOT/x265-multilib"
+X265_12_BUILD="$BUILD_ROOT/x265-12"
+X265_10_BUILD="$BUILD_ROOT/x265-10"
+X265_MAIN_BUILD="$BUILD_ROOT/x265-main"
+mkdir -p "$X265_MULTI" "$X265_12_BUILD" "$X265_10_BUILD" "$X265_MAIN_BUILD"
+pushd "$X265_12_BUILD" >/dev/null
 
 cmake "$SRC_ROOT/x265/source"   -DCMAKE_BUILD_TYPE=Release   -DCMAKE_OSX_ARCHITECTURES=arm64   -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"   -DHIGH_BIT_DEPTH=ON -DMAIN12=ON -DEXPORT_C_API=OFF   -DENABLE_CLI=OFF -DENABLE_SHARED=OFF
 cmake --build . --parallel "$JOBS"
-mv libx265.a libx265_main12.a
-rm -rf CMakeCache.txt CMakeFiles
+cp libx265.a "$X265_MULTI/libx265_main12.a"
+popd >/dev/null
 
+pushd "$X265_10_BUILD" >/dev/null
 cmake "$SRC_ROOT/x265/source"   -DCMAKE_BUILD_TYPE=Release   -DCMAKE_OSX_ARCHITECTURES=arm64   -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"   -DHIGH_BIT_DEPTH=ON -DMAIN10=ON -DEXPORT_C_API=OFF   -DENABLE_CLI=OFF -DENABLE_SHARED=OFF
 cmake --build . --parallel "$JOBS"
-mv libx265.a libx265_main10.a
-rm -rf CMakeCache.txt CMakeFiles
+cp libx265.a "$X265_MULTI/libx265_main10.a"
+popd >/dev/null
 
-cmake "$SRC_ROOT/x265/source"   -DCMAKE_BUILD_TYPE=Release   -DCMAKE_INSTALL_PREFIX="$PREFIX"   -DCMAKE_OSX_ARCHITECTURES=arm64   -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"   -DEXTRA_LIB="x265_main10.a;x265_main12.a"   -DEXTRA_LINK_FLAGS="-L."   -DLINKED_10BIT=ON -DLINKED_12BIT=ON   -DENABLE_CLI=OFF -DENABLE_SHARED=OFF
+pushd "$X265_MAIN_BUILD" >/dev/null
+cmake "$SRC_ROOT/x265/source"   -DCMAKE_BUILD_TYPE=Release   -DCMAKE_INSTALL_PREFIX="$PREFIX"   -DCMAKE_OSX_ARCHITECTURES=arm64   -DCMAKE_OSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"   -DEXTRA_LIB="x265_main10.a;x265_main12.a"   -DEXTRA_LINK_FLAGS="-L$X265_MULTI"   -DLINKED_10BIT=ON -DLINKED_12BIT=ON   -DENABLE_CLI=OFF -DENABLE_SHARED=OFF
 cmake --build . --parallel "$JOBS"
-mv libx265.a libx265_main.a
-libtool -static -o libx265.a libx265_main.a libx265_main10.a libx265_main12.a
+cp libx265.a "$X265_MULTI/libx265_main.a"
+libtool -static -o libx265.a "$X265_MULTI/libx265_main.a" "$X265_MULTI/libx265_main10.a" "$X265_MULTI/libx265_main12.a"
 cmake --install .
 mkdir -p "$PREFIX/lib/pkgconfig"
 cat > "$PREFIX/lib/pkgconfig/x265.pc" <<EOF
